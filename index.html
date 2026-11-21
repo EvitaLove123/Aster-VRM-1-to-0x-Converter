@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f9fc">
+<title>Aster VRM 1.0 → 0.0 Converter</title>
+<style>
+:root{color-scheme:light;--ink:#253247;--muted:#68778d;--line:#e3e9f1;--panel:#fff;--accent:#526fbd;--soft:#eef3ff;--good:#217a56;--bad:#b44848}
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:22px 16px 16px;background:#fff;border-bottom:1px solid var(--line)}.wrap{max-width:920px;margin:auto}
+h1{font-size:clamp(21px,4vw,30px);margin:0 0 5px;letter-spacing:-.4px}header p{margin:0;color:var(--muted)}
+main{max-width:920px;margin:18px auto;padding:0 14px 40px;display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px;box-shadow:0 3px 14px #25324708}
+h2{font-size:17px;margin:0 0 12px}.hint{color:var(--muted);font-size:13px}
+.drop{border:2px dashed #cbd5e4;border-radius:13px;padding:25px 14px;text-align:center;background:#fbfcff}
+.drop.drag{border-color:var(--accent);background:var(--soft)}input[type=file]{display:block;max-width:100%;margin:12px auto 0}
+button{border:0;border-radius:11px;padding:12px 16px;background:var(--accent);color:white;font-weight:650;font-size:15px;min-height:44px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+#preview{height:330px;background:linear-gradient(#f4f7fc,#e9eef7);border-radius:12px;overflow:hidden;position:relative}
+#preview canvas{display:block;width:100%;height:100%}.empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px;pointer-events:none}
+.status{padding:11px 13px;border-radius:10px;background:#f1f4f9;color:#46566d;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.status.good{background:#edf8f2;color:var(--good)}.status.bad{background:#fff1f1;color:var(--bad)}
+.filemeta{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:10px}
+ul{padding-left:20px;margin:8px 0}.pill{display:inline-block;border-radius:20px;background:var(--soft);color:#405b9f;padding:3px 9px;font-size:12px;font-weight:650}
+footer{color:var(--muted);font-size:12px;text-align:center;padding:4px 14px 22px}
+@media(min-width:760px){.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.3/lib/three-vrm.module.min.js"}}
+</script>
+</head>
+<body>
+<header><div class="wrap">
+<h1>Aster VRM Converter</h1>
+<p>VRM 1.0 → VRM 0.0 · Xử lý trực tiếp trên trình duyệt Android</p>
+</div></header>
+<main>
+<section class="card">
+<h2>1. Chọn model VRM 1.0</h2>
+<div class="drop" id="drop">
+<strong>Chọn tệp .vrm hoặc thả tệp vào đây</strong>
+<div class="hint">Model được xử lý cục bộ trong trình duyệt; không tải lên máy chủ.</div>
+<input id="file" type="file" accept=".vrm,model/gltf-binary,application/octet-stream">
+</div>
+<div class="filemeta" id="filemeta"></div>
+</section>
+<div class="grid">
+<section class="card">
+<h2>2. Xem trước model</h2>
+<div id="preview"><div class="empty" id="empty">Chưa có model được tải</div></div>
+<p class="hint">Có thể xoay và phóng to/thu nhỏ bằng thao tác chạm.</p>
+</section>
+<section class="card">
+<h2>3. Xuất VRM 0.0</h2>
+<p class="hint">Lõi xuất sử dụng VRMExporter mã nguồn mở. Không chèn metadata giả hoặc tự nhận là UniVRM.</p>
+<div class="actions"><button id="export" disabled>Xuất VRM 0.0</button></div>
+<div id="status" class="status" role="status" aria-live="polite">Đang chờ tệp VRM 1.0.</div>
+</section>
+</div>
+<section class="card">
+<h2>Thông tin chuyển đổi</h2>
+<ul>
+<li>Chuyển dữ liệu VRMC_vrm sang cấu trúc VRM 0.0.</li>
+<li>Ánh xạ humanoid, expressions/blendshapes, look-at, metadata, spring bones và material theo khả năng của thư viện xuất.</li>
+<li>VRM 1.0 có các tính năng không có ánh xạ 1:1 sang VRM 0.0; node constraints và một số thuộc tính mới có thể bị bỏ qua hoặc chuyển đổi gần đúng.</li>
+<li>Không thể đảm bảo mọi model đều tương thích với mọi ứng dụng. Cần kiểm tra tệp xuất trong ứng dụng đích.</li>
+</ul>
+<p class="hint">Khuyến nghị: giữ bản gốc. Với model lớn, dùng Chrome và không chuyển ứng dụng trong lúc xử lý.</p>
+</section>
+</main>
+<footer>Aster Workshop · VRM 0.0 output · Browser-side processing</footer>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VRMExport, conversion } from './src/VRMExporter.js';
+
+const fileInput=document.getElementById('file');
+const exportButton=document.getElementById('export');
+const statusBox=document.getElementById('status');
+const fileMeta=document.getElementById('filemeta');
+const empty=document.getElementById('empty');
+const drop=document.getElementById('drop');
+let model=null, originalName='avatar', busy=false;
+
+function setStatus(message,type){statusBox.textContent=message;statusBox.className='status'+(type?' '+type:'');}
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xf0f3f9);
+const camera=new THREE.PerspectiveCamera(35,1,0.1,100);
+camera.position.set(0,1.15,3.8);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+document.getElementById('preview').appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,1,0);controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa6ba,2.0));
+const key=new THREE.DirectionalLight(0xffffff,2.2);key.position.set(2,3,4);scene.add(key);
+function resize(){
+ const el=document.getElementById('preview');const w=el.clientWidth,h=el.clientHeight;
+ renderer.setSize(w,h,false);camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(document.getElementById('preview'));resize();
+function animate(){requestAnimationFrame(animate);controls.update();if(model)model.update(1/60);renderer.render(scene,camera)}
+animate();
+
+const loader=new GLTFLoader();
+loader.register(parser=>new VRMLoaderPlugin(parser,{}));
+function parseVrm(buffer){
+ return new Promise((resolve,reject)=>{
+  loader.parse(buffer,'',gltf=>resolve(gltf.userData.vrm),reject);
+ });
+}
+function isVrm1(buffer){
+ if(buffer.byteLength<20)return false;
+ const view=new DataView(buffer);
+ if(view.getUint32(0,true)!==0x46546c67)return false;
+ const jsonLength=view.getUint32(12,true);
+ const jsonText=new TextDecoder().decode(new Uint8Array(buffer,20,jsonLength));
+ const json=JSON.parse(jsonText);
+ return !!(json.extensions&&json.extensions.VRMC_vrm);
+}
+async function loadFile(file){
+ if(!file)return;
+ if(busy)return;
+ busy=true;exportButton.disabled=true;setStatus('Đang đọc và kiểm tra cấu trúc VRM…');
+ try{
+  if(!file.name.toLowerCase().endsWith('.vrm'))throw new Error('Hãy chọn tệp có đuôi .vrm.');
+  const buffer=await file.arrayBuffer();
+  if(!isVrm1(buffer))throw new Error('Không tìm thấy extension VRMC_vrm. Tệp này không được nhận diện là VRM 1.0.');
+  setStatus('Đang nạp model và chuẩn bị dữ liệu…');
+  const prepared=await conversion.before(buffer);
+  const loaded=await parseVrm(prepared.buffer);
+  const nextModel=await conversion.after(loaded,prepared.thumbnail);
+  if(model){scene.remove(model.scene);VRMUtils.deepDispose(model.scene);}
+  model=nextModel;scene.add(model.scene);
+  originalName=file.name.replace(/\.vrm$/i,'')||'avatar';
+  empty.style.display='none';
+  fileMeta.textContent=file.name+' · '+(file.size/1024/1024).toFixed(2)+' MB · VRM 1.0';
+  exportButton.disabled=false;
+  setStatus('Đã nạp model. Có thể xuất sang VRM 0.0.','good');
+ }catch(err){
+  console.error(err);setStatus('Không thể nạp model: '+(err&&err.message?err.message:String(err)),'bad');
+ }finally{busy=false;}
+}
+fileInput.addEventListener('change',e=>loadFile(e.target.files&&e.target.files[0]));
+['dragenter','dragover'].forEach(name=>drop.addEventListener(name,e=>{e.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(name=>drop.addEventListener(name,e=>{e.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)loadFile(f)});
+exportButton.addEventListener('click',async()=>{
+ if(!model||busy)return;
+ busy=true;exportButton.disabled=true;setStatus('Đang tạo tệp VRM 0.0. Không đóng tab trong lúc xử lý…');
+ try{
+  model.humanoid?.resetRawPose();
+  model.nodeConstraintManager?.update();
+  model.springBoneManager?.reset();
+  const buffer=await VRMExport(model,0);
+  const blob=new Blob([buffer],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=originalName+'_VRM0.vrm';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+  setStatus('Đã tạo tệp VRM 0.0. Hãy kiểm tra model trong ứng dụng đích.','good');
+ }catch(err){
+  console.error(err);setStatus('Xuất thất bại: '+(err&&err.message?err.message:String(err)),'bad');
+ }finally{busy=false;exportButton.disabled=!model;}
+});
+</script>
+</body>
+</html>
